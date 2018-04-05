@@ -1,0 +1,383 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="UTF-8">
+    <title>Trineo Time</title>
+    <style>
+      @keyframes scroll {
+        from { background-position-x: 0; }
+        to { background-position-x: 46px; }
+      }
+
+      html, body {
+        height: 100%;
+      }
+
+      body {
+        background: #f4f4f4;
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+        font-weight: 300;
+        margin: 0;
+        -webkit-font-smoothing: antialiased;
+      }
+
+      section {
+        flex: 1;
+      }
+
+      body, input {
+        font-family: -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Oxygen-Sans,Ubuntu,Cantarell,"Helvetica Neue",sans-serif;
+        font-size: 10pt;
+      }
+
+      main {
+        display: flex;
+        flex-direction: column;
+      }
+
+      .primary {
+        display: flex;
+        justify-content: space-between;
+      }
+
+      .primary input {
+        font-size: 1.3em;
+      }
+
+      .primary input:first-child {
+        flex: 1;
+      }
+
+      footer {
+        display: flex;
+        padding: 1em;
+      }
+
+      footer input {
+        color: #999;
+        border: none;
+        background: none;
+        flex: 1;
+        outline: none;
+        margin-right: 1em;
+      }
+
+      footer input:focus {
+        color: black;
+      }
+
+      form {
+        background: #2a323a;
+        color: #6D6D6D;
+        padding: 1em;
+      }
+
+      form.submitting {
+        background: repeating-linear-gradient(
+          -55deg,
+          #2a323a 1px,
+          #39434d 2px,
+          #39434d 11px,
+          #2a323a 12px,
+          #2a323a 20px
+        );
+
+        animation-name: scroll;
+        animation-duration: .6s;
+        animation-timing-function: linear;
+        animation-iteration-count: infinite;
+      }
+
+      form.submitted {
+        transition: background 0.2s ease;
+      }
+
+      .date {
+        flex: 1;
+        text-transform: uppercase;
+      }
+
+      header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+      }
+
+      section {
+        padding: 1em;
+      }
+
+      a {
+        text-decoration: none;
+      }
+
+      input[type="text"], input[type="date"] {
+        background: none;
+        border: none;
+        color: #8b8c8c;
+        outline: none;
+      }
+
+      input[name="duration"] {
+        text-align: right;
+      }
+
+      input[type="text"]:focus, input[type="date"]:focus {
+        color: white;
+      }
+
+      input[type="date"] {
+        width: 10em;
+      }
+
+      .indicator {
+        display: inline-block;
+        border: 1px solid;
+        border-radius: 2px;
+        margin-right: 0.5em;
+        height: 0.6em;
+        width: 0.6em;
+      }
+
+      .indicator.incomplete {
+        border-color: #a71b16;
+        background-color: #ff3c37;
+      }
+
+      .indicator.complete {
+        border-color: #5fa716;
+        background-color: #80ff37;
+      }
+
+      .button {
+        color: black;
+        border-radius: 3px;
+        border: 0.5px solid #D0D0D0;
+        box-shadow: 0 0.5px 1px rgba(0, 0, 0, 0.15);
+        display: inline-block;
+        background: white;
+        padding: 4px 8px;
+      }
+
+      .entry {
+        display: flex;
+        justify-content: space-between;
+        margin: 0.5em 0;
+      }
+    </style>
+  </head>
+  <body>
+
+    <form>
+      <div class="secondary">
+        <input type="text" name="project_id" placeholder="Project"> –
+        <input type="text" name="tag_id" placeholder="Tag"> –
+        <input type="date" name="local_date" placeholder="Date">
+      </div>
+      <div class="primary">
+        <input type="text" autofocus name="description" placeholder="Description">
+        <input type="text" name="duration[in_minutes]" size="6" maxlength="6" placeholder="Time">
+      </div>
+    </form>
+
+    <section>
+      <header>
+        <span class="date">Today</span>
+        <span class="indicator" title="Project has N hours per day"></span>
+        <span class="duration">
+        </span>
+      </header>
+
+      <div class="entries"></div>
+    </section>
+
+    <footer>
+      <input name="token" value="" placeholder="API Token">
+      <a href="#fetch-time-entries" class="button">⟳</a>
+      <a href="https://team.trineo.com/s/time-logging" class="button">History</a>
+    </footer>
+
+    <script>
+      const { shell } = require('electron')
+      const { URL } = require('url')
+      const Store = require('electron-store')
+      const moment = require('moment')
+
+      const store = new Store()
+      const timeEntriesEndpoint = new URL('https://trineo-time.herokuapp.com/time_entries')
+
+      const form = document.querySelector('form')
+      const tokenField = document.querySelector('input[name="token"]')
+
+      const eachElement = (selector, callback) => {
+        const elements = document.querySelectorAll(selector)
+        Array.prototype.slice.call(elements).forEach(callback)
+      }
+
+      eachElement('a[href^="http://"], a[href^="https://"]', (link) => {
+        link.addEventListener('click', (event) => {
+          event.preventDefault()
+          shell.openExternal(link.href)
+        })
+      })
+
+      function buildEntry(entry) {
+        return `
+        <div class="entry">
+          <span class="description">${entry.description}</span>
+          <span class="duration">
+            ${entry.duration.segmented.hours}h
+            ${entry.duration.segmented.minutes}min
+          </span>
+        </div>
+        `
+      }
+
+      function asDateParam (momentDate) {
+        return momentDate.format('YYYY-MM-DD')
+      }
+
+      eachElement('a[href="#fetch-time-entries"]', (link) => {
+        link.addEventListener('click', (event) => {
+          event.preventDefault()
+          fetchTimeEntries()
+        })
+      })
+
+      async function token() {
+        return await store.get('token')
+      }
+
+      async function fetchTimeEntries() {
+        const indicator = document.querySelector('.indicator')
+        document.querySelector('.entries').innerHTML = '…'
+        indicator.style.visibility = 'hidden'
+        const expectedMinutes = 480
+
+        const yesterday = moment().subtract(7, 'day')
+
+        const recentTimeEntriesEndpoint = new URL('https://trineo-time.herokuapp.com/time_entries')
+        recentTimeEntriesEndpoint.searchParams.append('token', await token())
+        recentTimeEntriesEndpoint.searchParams.append('since', asDateParam(yesterday))
+
+        let response
+        let entries
+
+        try {
+          response = await fetch(recentTimeEntriesEndpoint)
+          entries = await response.json()
+        } catch(error) {
+          document.querySelector('.entries').innerHTML = `Could not load time entries. ${error}`
+          throw error
+        }
+
+        const todaysEntries = entries.filter(entry => {
+          return moment(entry.local_date).isSame(moment(), 'day')
+        })
+
+        const totalMinutes = todaysEntries.reduce((total, entry) => total + entry.duration.in_minutes, 0)
+
+        const durationField = document.querySelector('input[name^="duration"]')
+        const descriptionField = document.querySelector('input[name="description"]')
+        const tagField = document.querySelector('input[name="tag_id"]')
+        const projectField = document.querySelector('input[name="project_id"]')
+        const dateField = document.querySelector('input[name="local_date"]')
+        const remainingMinutes = expectedMinutes - totalMinutes
+        const lastEntry = entries[entries.length - 1]
+
+        if (!durationField.value && remainingMinutes > 0) {
+          durationField.value = remainingMinutes
+        }
+
+        if (!descriptionField.value && lastEntry) {
+          descriptionField.value = lastEntry.description
+        }
+
+        if (!tagField.value && lastEntry && lastEntry.tags[0]) {
+          tagField.value = lastEntry.tags[0].id
+        }
+
+        if (!projectField.value && lastEntry) {
+          projectField.value = lastEntry.project.id
+        }
+
+        if (!dateField.value) {
+          dateField.value = asDateParam(moment())
+        }
+
+        const entriesHTML = todaysEntries.map(buildEntry).join("\n")
+
+        document.querySelector('.entries').innerHTML = entriesHTML
+        document.querySelector('header .duration')
+          .innerHTML = `${Math.floor(totalMinutes / 60)}h ${totalMinutes % 60}min`
+
+        if (totalMinutes < expectedMinutes) {
+          indicator.className = 'indicator incomplete'
+        } else {
+          indicator.className = 'indicator complete'
+        }
+
+        indicator.style.visibility = 'visible'
+
+        if (totalMinutes === 0) {
+          document.querySelector('.entries').innerHTML = '<div class="entry">No entries today.</div>'
+        }
+      }
+
+      form.addEventListener('keyup', async (event) => {
+        if (event.key !== 'Enter') {
+          return
+        }
+
+        form.className = 'submitting'
+
+        const data = new FormData(form)
+        data.set('token', await token())
+
+        const response = await fetch(timeEntriesEndpoint, {
+          method: 'post',
+          body: data
+        })
+
+        // 2xx
+        if(response.status.toString()[0] == '2') {
+          form.className = 'submitted'
+          eachElement('input[type="text"]', (field) => field.value = '')
+          fetchTimeEntries()
+        } else {
+          alert(`An error occurred: ${response.status} ${await response.text()}`)
+        }
+
+        form.className = ''
+      })
+
+      async function tokenDidChange() {
+        await store.set('token', tokenField.value)
+
+        if (await token()) {
+          await fetchTimeEntries()
+
+          document.querySelector('form').style.visibility = 'visible'
+          document.querySelector('section').style.visibility = 'visible'
+          eachElement('footer a', link => link.style.visibility = 'visible')
+        } else {
+          document.querySelector('form').style.visibility = 'hidden'
+          document.querySelector('section').style.visibility = 'hidden'
+          eachElement('footer a', link => link.style.visibility = 'hidden')
+          tokenField.focus()
+        }
+      }
+
+      tokenField.addEventListener('change', tokenDidChange)
+
+      async function init() {
+        tokenField.value = await token()
+        tokenDidChange()
+      }
+
+      init()
+    </script>
+  </body>
+</html>

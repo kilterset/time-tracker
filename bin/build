@@ -1,0 +1,4 @@
+#!/bin/sh
+
+export DEBUG=${DEBUG:-electron-packager}
+yarn run --silent electron-packager . --overwrite --no-prune --out build

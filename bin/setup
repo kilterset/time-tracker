@@ -1,0 +1,18 @@
+#!/bin/sh
+
+# Exit if any command fails
+set -e
+
+command -v node || (echo 'Please install Node: https://nodejs.org/' && exit 1)
+command -v yarn || (echo 'Please install Yarn: npm install --global yarn' && exit 1)
+
+yarn install
+
+cat <<INSTRUCTIONS
+
+==> You're good to go!
+
+      bin/start # Run the app
+      bin/build # Build the app for distribution
+
+INSTRUCTIONS
