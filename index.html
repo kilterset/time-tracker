@@ -189,7 +189,7 @@
     <section>
       <header>
         <span class="date">Today</span>
-        <span class="indicator" title="Project has N hours per day"></span>
+        <span class="indicator"></span>
         <span class="duration">
         </span>
       </header>
@@ -258,7 +258,6 @@
         const indicator = document.querySelector('.indicator')
         document.querySelector('.entries').innerHTML = '<div class="spinner"><img src="rotating-pug.gif" alt="Loading" title="Loading"></div>'
         indicator.style.visibility = 'hidden'
-        const expectedMinutes = 480
 
         const yesterday = moment().subtract(7, 'day')
 
@@ -288,12 +287,10 @@
         const tagField = document.querySelector('input[name="tag_id"]')
         const projectField = document.querySelector('input[name="project_id"]')
         const dateField = document.querySelector('input[name="local_date"]')
-        const remainingMinutes = expectedMinutes - totalMinutes
         const lastEntry = entries[entries.length - 1]
+        let expectedMinutes = 480
 
-        if (!durationField.value && remainingMinutes > 0) {
-          durationField.value = remainingMinutes
-        }
+        indicator.style.visibility = 'none'
 
         if (!descriptionField.value && lastEntry) {
           descriptionField.value = lastEntry.description
@@ -303,8 +300,27 @@
           tagField.value = lastEntry.tags[0].id
         }
 
-        if (!projectField.value && lastEntry) {
+        if (!projectField.value && lastEntry && lastEntry.project) {
           projectField.value = lastEntry.project.id
+
+          if (lastEntry.project.hours_per_day) {
+            expectedMinutes = lastEntry.project.hours_per_day * 60
+
+            if (totalMinutes < expectedMinutes) {
+              indicator.className = 'indicator incomplete'
+            } else {
+              indicator.className = 'indicator complete'
+            }
+
+            indicator.title = `Project has ${lastEntry.project.hours_per_day} hours per day`
+            indicator.style.visibility = 'visible'
+          }
+        }
+
+        const remainingMinutes = expectedMinutes - totalMinutes
+
+        if (!durationField.value && remainingMinutes > 0) {
+          durationField.value = remainingMinutes
         }
 
         if (!dateField.value) {
@@ -317,13 +333,6 @@
         document.querySelector('header .duration')
           .innerHTML = `${Math.floor(totalMinutes / 60)}h ${totalMinutes % 60}min`
 
-        if (totalMinutes < expectedMinutes) {
-          indicator.className = 'indicator incomplete'
-        } else {
-          indicator.className = 'indicator complete'
-        }
-
-        indicator.style.visibility = 'visible'
 
         if (totalMinutes === 0) {
           document.querySelector('.entries').innerHTML = '<div class="entry">No entries today.</div>'
