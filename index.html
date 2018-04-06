@@ -251,7 +251,7 @@
       })
 
       async function token() {
-        return await store.get('token')
+        return (await store.get('token'))
       }
 
       async function fetchTimeEntries() {
@@ -377,7 +377,10 @@
       tokenField.addEventListener('change', tokenDidChange)
 
       async function init() {
-        tokenField.value = await token()
+        if (await token()) {
+          tokenField.value = await token()
+        }
+
         tokenDidChange()
       }
 
