@@ -200,11 +200,12 @@
     <footer>
       <input name="token" value="" placeholder="API Token">
       <a href="#fetch-time-entries" class="button">⟳</a>
-      <a href="https://team.trineo.com/s/time-logging" class="button">History</a>
+      <div id="react-root"></div>
     </footer>
 
+    <script src="boot.js"></script>
+
     <script>
-      const { shell } = require('electron')
       const { URL } = require('url')
       const Store = require('electron-store')
       const moment = require('moment')
@@ -219,13 +220,6 @@
         const elements = document.querySelectorAll(selector)
         Array.prototype.slice.call(elements).forEach(callback)
       }
-
-      eachElement('a[href^="http://"], a[href^="https://"]', (link) => {
-        link.addEventListener('click', (event) => {
-          event.preventDefault()
-          shell.openExternal(link.href)
-        })
-      })
 
       function buildEntry(entry) {
         return `

@@ -1,0 +1,8 @@
+{
+  "presets": [
+    ["env", { "targets": { "electron": "1.8.4" } }],
+    "react"
+  ],
+  "plugins": ["transform-async-to-generator", "transform-es2015-classes"],
+  "sourceMaps": "inline"
+}
